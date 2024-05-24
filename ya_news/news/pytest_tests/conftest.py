@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 
 import pytest
-
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.test import Client
@@ -10,6 +9,18 @@ from django.urls import reverse
 from news.models import Comment, News
 
 User = get_user_model()
+
+
+@pytest.fixture
+def routes():
+    """Вычисляет значения маршрутов."""
+    return {
+        'home': reverse('news:home'),
+        'detail': reverse('news:detail', args=[pytest.lazy_fixture('news')]),
+        'login': reverse('users:login'),
+        'logout': reverse('users:logout'),
+        'signup': reverse('users:signup'),
+    }
 
 
 @pytest.fixture
@@ -45,10 +56,15 @@ def comment(news, author):
 
 
 @pytest.fixture
+def client():
+    """Создаёт неавторизованного клиента для тестирования."""
+    return Client()
+
+
+@pytest.fixture
 def client_with_login(author):
     """Авторизует клиента с помощью созданного пользователя (автора)."""
     client = Client()
-    client.user = author
     client.force_login(author)
     return client
 
@@ -57,7 +73,6 @@ def client_with_login(author):
 def client_with_reader_login(reader):
     """Авторизует клиента с помощью созданного пользователя (читателя)."""
     client = Client()
-    client.user = reader
     client.force_login(reader)
     return client
 
@@ -72,8 +87,14 @@ def detail_url(news):
 def news_list():
     """Создает новости для тестирования."""
     news_count = settings.NEWS_COUNT_ON_HOME_PAGE + 1
-    for i in range(news_count):
-        News.objects.create(title=f'Заголовок {i}', text='Текст')
+    news_items = [
+        News(title=f'Заголовок {i}',
+             text='Текст',
+             date=datetime.now() - timedelta(days=i)
+             )
+        for i in range(news_count)
+    ]
+    News.objects.bulk_create(news_items)
 
 
 @pytest.fixture
